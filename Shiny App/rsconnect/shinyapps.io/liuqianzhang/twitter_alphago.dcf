@@ -1,0 +1,12 @@
+name: twitter_alphago
+title: twitter_alphago
+username:
+account: liuqianzhang
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 249659
+bundleId: 1139919
+url: https://liuqianzhang.shinyapps.io/twitter_alphago/
+when: 1513555108.41333
+asMultiple: FALSE
+asStatic: FALSE
