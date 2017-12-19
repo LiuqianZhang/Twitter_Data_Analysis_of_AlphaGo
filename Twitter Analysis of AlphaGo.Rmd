@@ -21,31 +21,36 @@ pacman::p_load(
 
 
 ```
+#1. Project Description
 
-## Connect to twitter api
+This is a project analyzing twitter data containing the keyword 'AlphaGo' from 2017-11-28 to 2017-12-04. In order to explore the brand perception of AlphaGo on Twitter, word frequency analysis, sentiment anlysis, day part analysis have been conducted.
+
+#2. Data Importing
+##2.1 Connect to twitter api
 ```{r}
 api_key <- 	"Y96v0OOcyQfNb6Xtdq5OMKh65"
 api_secret <- "QMamXhqcqyfGMDMtHhZVECAdvEvDJ0t2Tq406382qaUVA7YWgl"
 access_token <- "927637446975770624-0HMkuqqvY4uONQH0Hk61UGjDvjSoyRV"
 access_token_secret <- "VdyedkmyhuCLV1aOM9FvxRBT4EO1bAcb8BRYBA7tJdElA"
   
-
-
 twitteR::setup_twitter_oauth(api_key, 
                     api_secret, 
                     access_token, 
                     access_token_secret)
 
 ```
-## read data
+##2.2 read data
 ```{r}
-data <- searchTwitter('alphago',since='2017-01-01', until='2017-12-05',lang = "en", n=1000) %>% twListToDF()
+data <- searchTwitter('alphago',since='2017-01-01',lang = "en", n=1000) %>% twListToDF()
 head(data)
 
 # write.csv(data, "AlphaGo.csv")
+
+# read the previously saved twitter data in order to keep the analysis consistant
+data <- read.csv("AlphaGo.csv", stringsAsFactors = FALSE)
 ```
-## Text Analysis of Top Words
-### Word Frequency
+#3. Analysis
+##3.1 Word Frequency
 ```{r}
 ## tokenize
 
@@ -60,7 +65,7 @@ tidy_data <-  tidy_data %>%
 
 tidy_data %>%  count(word, sort=TRUE)
 
-
+# word frequency list
 tidy_data %>%
   count(word, sort = TRUE) %>%
   filter(n > 30) %>%
@@ -70,32 +75,27 @@ tidy_data %>%
   xlab(NULL) +
   coord_flip()
 ```
-### Sentiment Analysis
+From the frequency list, we can see besides the word "alphago", the website address "https://t.co/mRJ5JcK6Sh" appeared around 41 times in this week. It is a link leads to the alphago movie official site.
+
+The words "movie", "alphagomovie", "documentary", "december","googleplay", "buy", "demand", "heading", "platforms", and "rent" each showed up around 160 times. This pattern looks like a tweet being retweeted many times, or seem to be a marketing campaign. This guess will be validated in section 3.3.
+
 ```{r}
-get_sentiments("afinn")
-
-get_sentiments("bing")
-
-get_sentiments("nrc")
+library(wordcloud)
+tidy_data %>%
+  anti_join(stop_words) %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
 ```
-
+##3.2 Sentiment Analysis
 ```{r}
-#positive and negtive words
-
-nrcpos <- get_sentiments("nrc") %>% 
-  filter(sentiment == "positive")
-
-tidy_data %>%
-  inner_join(nrcpos) %>%
-  count(word, sort = TRUE)
-
-
-nrcneg <- get_sentiments("nrc") %>% 
-  filter(sentiment == "negative")
-
-tidy_data %>%
-  inner_join(nrcneg) %>%
-  count(word, sort = TRUE)
+# get_sentiments("afinn")
+# 
+# get_sentiments("bing")
+# 
+# get_sentiments("nrc")
+```
+###3.2.1 Fear Words and Joy Words Frequencies
+```{r}
 
 nrcfear <- get_sentiments("nrc") %>% 
   filter(sentiment == "fear")
@@ -114,6 +114,7 @@ tidy_data %>%
 The word "mother" appear in both lists, so we need to fix that by adding it to stopword list. The word "learning" appear in positive words, but in this context, it mostly related to machine learning, which is a neutural word. So we add it to positive stop words. On the other hand, the word "player" appears in negative lists. I don't consider this as negative word in this case, because it can be used to describe players of the Go game. Need to add it to the negative stop words list.
 
 ```{r}
+## adjust by removing custom stop words
 custom_stop_words <- bind_rows(data_frame(word = c("mother", "player","learning","intelligence"), 
                                           lexicon = c("custom")), 
                                stop_words)
@@ -144,10 +145,11 @@ joylist %>%
   coord_flip() +
   scale_y_continuous(limits = c(0,110))
 ```
-From the twitters, the word "excited" are mentioned over 100 time, indicating it is an important sentiment of people towards AlphaGo.
+From the tweets, the word "excited" are mentioned over 100 time, indicating it is an important sentiment of people towards AlphaGo.
 
 The word "bad" appeared over 40 times. This is also an important sentiment here. Some words like "threat", and "nervous" may indicate something about people's worry. But because the sample size of the twitters is not large enough, these words only appear once. We cannot say whether people feel fear about AlphaGo.
-## sentiment analysis with bing
+
+###3.2.2 Positive and Negative Words Frequencies
 ```{r}
 bingpos <- get_sentiments("bing") %>% 
   filter(sentiment == "positive")
@@ -183,16 +185,8 @@ neglist %>%
   scale_y_continuous(limits = c(0,110))
 ```
 
+###3.2.3 Word Clouds of Positive and Negative Words
 
-```{r}
-library(wordcloud)
-
-
-tidy_data %>%
-  anti_join(stop_words) %>%
-  count(word) %>%
-  with(wordcloud(word, n, max.words = 100))
-```
 
 ```{r}
   tidy_data %>%
@@ -204,12 +198,10 @@ tidy_data %>%
                    max.words = 100)
 ```
 
-
-
-
 From the first word cloud, we can see during this period, people talk a lot about the alphago documentary. And the url of the movie appears many times.
 
-## How hot is the topic during the period?
+##3.3  Topic Hotness by Date
+### 3.3.1 EDA
 ```{r}
 # by date
 (dates <- data %>%
@@ -226,39 +218,114 @@ ggplot() +
   scale_x_discrete(limits=lubridate::date(dates$date),labels=lubridate::date(dates$date))
 ```
 The number of tweets about AlphaGo in December 2nd and 3rd are higher than other dates.
-
+###3.3.2 Analysis of Percentages of Popular Tweets 
+The following is anlyzing which tweets or topics are pushing the volumns high in December 2nd and 3rd.
+The number of tweets in dec 2nd (showing first 20 rows)
 ```{r}
-# First 10 rows The tweets in dec 2nd
+# The number of tweets in dec 2nd (showing first 20 rows)
 
 data %>%
   filter(date(created)==c("2017-12-02")) %>%
   .$text %>%
-  head(10)
+  head(20)
 
 data %>%
   filter(date(created)==c("2017-12-02")) %>%
   nrow()
 
 ```
+
+Number of tweets with content "RT @chrisalbon: AlphaGo documentary https://t.co/mRJ5JcK6Sh\n\nForget Star Wars, I want to see this so bad."
+```{r}
+# number of tweets with content "RT @chrisalbon: AlphaGo documentary https://t.co/mRJ5JcK6Sh\n\nForget Star Wars, I want to see this so bad."
+
+data %>%
+  filter(date(created)==c("2017-12-02")) %>%
+  filter(grepl("AlphaGo documentary https://t.co/mRJ5JcK6Sh\n\nForget Star Wars, I want to see this so bad",text)) %>%
+  nrow
+```
+
+```{r}
+paste(round(11/144*100,2), "% of the tweets in Dec 2nd are retweeting the one from @chrisalbon")
+```
+Number of tweets containing GooglePlay in dec 2nd
 ```{r}
 # number of tweets containing GooglePlay in dec 2nd
 data %>%
   filter(date(created)==c("2017-12-02")) %>%
-  filter(grepl("GooglePlay",text)) %>%
+  filter(grepl("#AlphaGo Movie is now available to rent and buy on @GooglePlay &amp; heading to other on-demand platforms on 8 December",text)) %>%
   nrow
-
-paste(round(87/144*100,2), "% of the tweets in Dec 2nd are talking about AlphaGo movie available on GooglePlay.")
 ```
+
 ```{r}
-# number of tweets containing documentary in dec 2nd
-data %>%
-  filter(date(created)==c("2017-12-02")) %>%
-  filter(grepl("documentary",text)) %>%
-  nrow
+paste(round(85/144*100,2), "% of the tweets in Dec 2nd are retweeting the one created by @alphagomovie advertising it is available on GooglePlay.")
+```
+pie chart of popular retweets
+```{r}
+df1 <- data.frame(
+  group = c("RT@alphagomovie", "RT@chrisalbon", "Others"),
+  value = c(85, 11, 144-11-85)
+  )
 
+ggplot(df1, aes(x="", y=value, fill=group))+
+  geom_bar(width = 1, stat = "identity") +
+  coord_polar("y", start=0) +
+  ggtitle("Dec 2nd Popular Retweets")
 ```
 
+Tweets on Dec 3rd.
+```{r}
+# The number of tweets in dec 3rd (showing first 20 rows)
 
+data %>%
+  filter(date(created)==c("2017-12-03")) %>%
+  .$text %>%
+  head(20)
+
+data %>%
+  filter(date(created)==c("2017-12-03")) %>%
+  nrow()
+
+```
+Number of tweets about alphago movie on GooglePlay on dec 3rd
+```{r}
+# number of tweets containing GooglePlay on dec 3rd
+data %>%
+  filter(date(created)==c("2017-12-03")) %>%
+  filter(grepl("#AlphaGo Movie is now available to rent and buy on @GooglePlay &amp; heading to other on-demand platforms on 8 December",text)) %>%
+  nrow
+```
+
+```{r}
+paste(round(65/220*100,2), "% of the tweets on Dec 3rd are retweeting the one created by @alphagomovie advertising it is available on GooglePlay.")
+```
+
+Number of tweets retweeting the one from demishassabis
+```{r}
+data %>%
+  filter(date(created)==c("2017-12-03")) %>%
+  filter(grepl("RT @demishassabis: So excited that the #AlphaGo documentary and the behind the scenes story of the dramatic match in Seoul is now available",text)) %>%
+  nrow
+```
+
+```{r}
+paste(round(85/220*100,2), "% of the tweets on Dec 3rd are retweeting the one created by @demishassabis.")
+```
+
+pie chart of popular retweets
+```{r}
+df2 <- data.frame(
+  group = c("RT@alphagomovie", "RT@demishassabis", "Others"),
+  value = c(85, 65, 220-65-85)
+  )
+
+ggplot(df2, aes(x="", y=value, fill=group))+
+  geom_bar(width = 1, stat = "identity") +
+  coord_polar("y", start=0) +
+  ggtitle("Dec 3rd Popular Retweets")
+```
+
+##3.4 Topic Hotness By Hour
 ```{r}
 # by hour
 (hourly <- data %>%
@@ -280,3 +347,9 @@ ggplot() +
 
 ```
 The average number of tweets about AlphaGo is peaked at 8am, 11am, and 2pm.
+
+#4. Conclusion
+
+From the word frequency analysis, I found out that the movie and the documentary are being talked about very frequently abour alphago in this week on Twitter. From the sentiment analysis, both joy and fear can be seen. From the topic hotness by date, we can see that on Dec 2nd and 3rd, the fequency of alphago tweets are about 3 times higher than other days in the week. Among them, the retweets of certain contents about the alphago movie took up more than half of the total amounts.
+
+From this project, I think analysis of twitter data can be applied to monitoring online marketing campaigns, because it is useful in reflecting the sentiments, word frequencies and number of retweets.
