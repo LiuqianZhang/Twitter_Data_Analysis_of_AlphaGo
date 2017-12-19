@@ -83,16 +83,23 @@ ui <- fluidPage(
              ), #end of tabpanel sentiment
              tabPanel("Topic Hotness By Date",
                       h1("Topic Hotness By Date"),
+                      p("Hover on the dots to see numbers."),
+                      p("Scroll down to see data."),
                       fluidRow(
-                        column(7,
+                        column(6,
                                ggvisOutput("bydate")
                         ),
-                        column(4,
-                               p("Hover on the dots to see numbers."),
-                               p("Scroll down to see data.")
+                        column(3,
+                               plotOutput("secondpie")
                         ),
+                        column(3,
+                               
+                               plotOutput("thirdpie")
+                          
+                        )
+                      ),
                         dataTableOutput("datetable")
-                      )
+                      
              ),
              tabPanel("Topic Hotness By Hour",
                       h1("Topic Hotness By Hour"),
@@ -170,7 +177,37 @@ server <- function(input, output) {
       coord_flip() +
       scale_y_continuous(limits = c(0,110))
   })
+  
+  # second dec pie chart
+
+  
+  output$secondpie <- renderPlot ({
+    df1 <- data.frame(
+      group = c("RT@alphagomovie", "RT@chrisalbon", "Others"),
+      value = c(85, 11, 144-11-85)
+    )
     
+    ggplot(df1, aes(x="", y=value, fill=group))+
+    geom_bar(width = 1, stat = "identity") +
+    coord_polar("y", start=0) +
+    ggtitle("Dec 2nd Popular Retweets")
+  })
+  
+  # third dec pie chart
+  
+  output$thirdpie <- renderPlot ({
+    
+  df2 <- data.frame(
+    group = c("RT@alphagomovie", "RT@demishassabis", "Others"),
+    value = c(85, 65, 220-65-85)
+  )
+  
+  ggplot(df2, aes(x="", y=value, fill=group))+
+    geom_bar(width = 1, stat = "identity") +
+    coord_polar("y", start=0) +
+    ggtitle("Dec 3rd Popular Retweets")  
+  })
+  
     # create date table
     datedt <-data %>%
       mutate( date1 = date(created)) %>%
